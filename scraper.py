@@ -3,6 +3,7 @@ from urllib.parse import urlparse, urljoin, urldefrag
 from collections import Counter
 from bs4 import BeautifulSoup
 
+# Is_Valid variables
 STOPWORDS = {
     "a", "about", "above", "after", "again", "against", "all", "am",
     "an", "and", "any", "are", "aren't", "as", "at", "be", "because",
@@ -27,29 +28,41 @@ STOPWORDS = {
     "yourself", "yourselves"
 }
 
-valid_domains = [".ics.uci.edu", ".cs.uci.edu", ".informatics.uci.edu", ".stat.uci.edu"]
+ALLOWED_DOMAINS = (
+    ".ics.uci.edu",
+    ".cs.uci.edu",
+    ".informatics.uci.edu",
+    ".stat.uci.edu",
+)
+BLACKLISTED_DOMAINS = (
+    "https://isg.ics.uci.edu/events/*",
+    "http://fano.ics.uci.edu/ca/rules/",
 
-blacklisted_file_types = re.compile(
-    r".*\.(css|js|bmp|gif|jpe?g|ico"
-    + r"|png|tiff?|mid|mp2|mp3|mp4"
-    + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
-    + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
-    + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
-    + r"|epub|dll|cnf|tgz|sha1"
-    + r"|thmx|mso|arff|rtf|jar|csv"
-    + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$"
-)   
+)
+
+FILE_EXT_BLACKLIST_RE = re.compile(
+    r"\.(css|js|bmp|gif|jpe?g|ico|png|tiff?|mid|mp2|mp3|mp4|"
+    r"wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf|ps|eps|tex|ppt|"
+    r"pptx|doc|docx|xls|xlsx|names|data|dat|exe|bz2|tar|msi|bin|"
+    r"7z|psd|dmg|iso|epub|dll|cnf|tgz|sha1|thmx|mso|arff|rtf|jar|"
+    r"csv|rm|smil|wmv|swf|wma|zip|rar|gz)$"
+)
 
 TRAP_PATTERNS = [
-    r"/calendar", r"/events", r"/ical", r"/wp-json", r"/feed", r"/rss", 
-    r"/archives?/\d{4}",
-    r"/\d{4}/\d{2}/",
-    r"/print", r"/preview", r"/share", r"/login", r"/logout", r"/tag/", r"/author/", r"/category/",
-    r"(\?|&)page=\d{2,}", r"(\?|&)offset=\d+", r"(\?|&)p=\d+", r"(\?|&)sort=", r"(\?|&)order=", r"(\?|&)dir=",
-    r"(\?|&)utm_", r"(\?|&)replytocom=", r"(\?|&)session(id)?=", r"(\?|&)fbclid=", r"(\?|&)gclid=",
-    r"(\?|&)format=(amp|print)", 
-] 
+    r"/calendar", r"/events", r"/ical", r"/wp-json", r"/feed", r"/rss",
+    r"/archives?/\d{4}", r"/\d{4}/\d{2}/",
+    r"/print", r"/preview", r"/share", r"/login", r"/logout",
+    r"/tag/", r"/author/", r"/category/",
+    r"(\?|&)page=\d{2,}", r"(\?|&)offset=\d+", r"(\?|&)p=\d+",
+    r"(\?|&)sort=", r"(\?|&)order=", r"(\?|&)dir=",
+    r"(\?|&)utm_", r"(\?|&)replytocom=", r"(\?|&)session(id)?=",
+    r"(\?|&)fbclid=", r"(\?|&)gclid=",
+    r"(\?|&)format=(amp|print)",
+]
 TRAP_RES = [re.compile(p) for p in TRAP_PATTERNS]
+
+# 
+SKIP_REASONS = Counter()
 
 unique_urls = set()
 word_freq = Counter()
@@ -64,7 +77,7 @@ def scraper(url, resp):
     # Check if content is text/html
     content_type = resp.raw_response.headers.get("Content-Type", "")
     if "text/html" not in content_type.lower():
-        return [] # no valid links
+        return [] 
 
     # Initialize data after checking response is ok
     base_url, _ = urldefrag(url)
@@ -79,6 +92,10 @@ def scraper(url, resp):
         #get tokens & update word_freq
         tokens = tokenize(text)
         word_freq.update(tokens)
+
+        # Prevent scraping pages with too few tokens
+        if len(tokens) < 100:
+            return []
 
         # update longest page
         global longest_page
@@ -153,21 +170,29 @@ def is_valid(url):
     try:
         parsed = urlparse(url)
         # Must be http or https
-        if parsed.scheme not in set(["http", "https"]):
+        if parsed.scheme not in {"http", "https"}:
             return False
 
+        
+
         # Only crawl valid domains
-        domain = parsed.hostname.lower() if parsed.hostname else ""
-        if not any(domain.endswith(suffix) for suffix in valid_domains):
+        host = (parsed.hostname or "").lower()
+        if not any(host.endswith(suf) for suf in ALLOWED_DOMAINS):
             return False
             
+        #Prevent blacklisted domains
+        if host in BLACKLISTED_DOMAINS:
+            return False 
+        
         # Return false on blacklisted file types
-        if blacklisted_file_types.search(path):
+        path = (parsed.path or "").lower()
+        if FILE_EXT_BLACKLIST_RE.search(path):
             return False
 
         # handle traps
-        for rex in TRAP_RES:
-            if rex.search(path) or rex.search(query):
+        query = (parsed.query or "").lower()
+        for rx in TRAP_RES:
+            if rx.search(path) or rx.search(query):
                 return False
 
         # Handle large nested & repetitive directories
@@ -180,11 +205,6 @@ def is_valid(url):
         # Handle excessively large queries 
         if len(query) > 200:
             return False
-
-
-
-        
-
 
         return True
 
