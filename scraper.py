@@ -27,6 +27,30 @@ STOPWORDS = {
     "yourself", "yourselves"
 }
 
+valid_domains = [".ics.uci.edu", ".cs.uci.edu", ".informatics.uci.edu", ".stat.uci.edu"]
+
+blacklisted_file_types = re.compile(
+    r".*\.(css|js|bmp|gif|jpe?g|ico"
+    + r"|png|tiff?|mid|mp2|mp3|mp4"
+    + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
+    + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
+    + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
+    + r"|epub|dll|cnf|tgz|sha1"
+    + r"|thmx|mso|arff|rtf|jar|csv"
+    + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$"
+)   
+
+TRAP_PATTERNS = [
+    r"/calendar", r"/events", r"/ical", r"/wp-json", r"/feed", r"/rss", 
+    r"/archives?/\d{4}",
+    r"/\d{4}/\d{2}/",
+    r"/print", r"/preview", r"/share", r"/login", r"/logout", r"/tag/", r"/author/", r"/category/",
+    r"(\?|&)page=\d{2,}", r"(\?|&)offset=\d+", r"(\?|&)p=\d+", r"(\?|&)sort=", r"(\?|&)order=", r"(\?|&)dir=",
+    r"(\?|&)utm_", r"(\?|&)replytocom=", r"(\?|&)session(id)?=", r"(\?|&)fbclid=", r"(\?|&)gclid=",
+    r"(\?|&)format=(amp|print)", 
+] 
+TRAP_RES = [re.compile(p) for p in TRAP_PATTERNS]
+
 unique_urls = set()
 word_freq = Counter()
 subdomains = {}
@@ -35,12 +59,12 @@ longest_page = ("", 0)
 def scraper(url, resp):
     # Check for valid response
     if not resp or resp.status != 200 or not getattr(resp, "raw_response", None):
-        return [link for link in links if is_valid(link)]
+        return [] # no valid links
 
     # Check if content is text/html
     content_type = resp.raw_response.headers.get("Content-Type", "")
     if "text/html" not in content_type.lower():
-        return [link for link in links if is_valid(link)]
+        return [] # no valid links
 
     # Initialize data after checking response is ok
     base_url, _ = urldefrag(url)
@@ -70,7 +94,7 @@ def scraper(url, resp):
     except Exception as e: # If there was an error tokening/parsing the page
         print(f"[scraper] Tokenization or parse error on {url}: {e}")
                 
-    return [link for link in links if is_valid(link)] # Return all valid links
+    return list(filter(is_valid, links)) # Return all valid links
 
 def extract_next_links(url, resp):
     # Implementation required.
@@ -128,27 +152,41 @@ def is_valid(url):
 
     try:
         parsed = urlparse(url)
-
         # Must be http or https
         if parsed.scheme not in set(["http", "https"]):
             return False
 
-        # Only crawl these domains
-        valid_domains = [".ics.uci.edu", ".cs.uci.edu", ".informatics.uci.edu", ".stat.uci.edu"]
+        # Only crawl valid domains
         domain = parsed.hostname.lower() if parsed.hostname else ""
         if not any(domain.endswith(suffix) for suffix in valid_domains):
             return False
             
-        # Return false on non-HTML file types
-        return not re.match(
-            r".*\.(css|js|bmp|gif|jpe?g|ico"
-            + r"|png|tiff?|mid|mp2|mp3|mp4"
-            + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
-            + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
-            + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
-            + r"|epub|dll|cnf|tgz|sha1"
-            + r"|thmx|mso|arff|rtf|jar|csv"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
+        # Return false on blacklisted file types
+        if blacklisted_file_types.search(path):
+            return False
+
+        # handle traps
+        for rex in TRAP_RES:
+            if rex.search(path) or rex.search(query):
+                return False
+
+        # Handle large nested & repetitive directories
+        if path.count("/") > 15:
+            return False
+        segments = [s for s in path.split("/") if s]
+        if len(segments) > 8 and len(segments) != len(set(segments)):
+            return False
+
+        # Handle excessively large queries 
+        if len(query) > 200:
+            return False
+
+
+
+        
+
+
+        return True
 
     except TypeError:
         print ("TypeError for ", parsed)

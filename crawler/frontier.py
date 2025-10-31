@@ -24,7 +24,7 @@ class Frontier(object):
         # Load existing save file, or create one if it does not exist.
         self.thread_local = threading.local() 
         self.save_file = self.config.save_file
-        # self.save = shelve.open(self.save_file, writeback=True)
+        self.save = shelve.open(self.save_file, writeback=True)
         
         # Restart from the seed_urls
         if restart:
@@ -84,5 +84,5 @@ class Frontier(object):
     def get_save(self):
         """Ensure each thread has its own shelve connection."""
         if not hasattr(self.thread_local, "save"):
-            self.thread_local.save = shelve.open(self.save_file, writeback=False)
+            self.thread_local.save = self.save
         return self.thread_local.save
