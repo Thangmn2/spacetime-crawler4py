@@ -27,7 +27,7 @@ class Frontier(object):
         # Load existing save file, or create one if it does not exist.
         self.thread_local = threading.local() 
         self.save_file = self.config.save_file
-        self.save = shelve.open(self.save_file, writeback=True)
+        # self.save = shelve.open(self.save_file, writeback=True)
         if restart:
             for url in self.config.seed_urls:
                 self.add_url(url)
@@ -64,6 +64,7 @@ class Frontier(object):
         if urlhash not in save:
             save[urlhash] = (url, False)
             save.sync()
+            self.to_be_downloaded.append(url)
     
     def mark_url_complete(self, url):
         urlhash = get_urlhash(url)
