@@ -15,7 +15,36 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    return list()
+    output = set()
+
+    if not resp or getattr(resp, "status", None) != 200 or not getattr(resp, "raw_response", None):
+        return []
+
+    try:
+        content_type = resp.raw_response.headers.get("Content-Type", "") or ""
+    except Exception:
+        content_type = ""
+    if "text/html" not in content_type.lower():
+        return []
+
+    try:
+        soup = BeautifulSoup(resp.raw_response.content, "html.parser")
+        base = getattr(resp, "url", None) or url
+
+        for a in soup.find_all("a", href=True):
+            href = a.get("href", "").strip()
+            if not href or href.startswith(("mailto:", "javascript:")):
+                continue
+
+            absolute_url = urljoin(base, href)
+            absolute_url, _ = urldefrag(absolute_url)
+            output.add(absolute_url)
+
+    except Exception as e:
+        print(f"[scraper] Error processing {url}: {e}")
+
+    print(f"[scraper] Extracted {len(output)} links from {url}")
+    return list(output)
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
@@ -25,6 +54,13 @@ def is_valid(url):
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
+
+        domain = parsed.hostname.lower() if parsed.hostname else ""
+        if not any(domain.endswith(suffix) for suffix in [
+            ".ics.uci.edu", ".cs.uci.edu", ".informatics.uci.edu", ".stat.uci.edu"
+        ]):
+            return False
+            
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
