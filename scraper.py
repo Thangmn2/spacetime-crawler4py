@@ -33,39 +33,44 @@ subdomains = {}
 longest_page = ("", 0)
 
 def scraper(url, resp):
-    base_url, _ = urldefrag(url)
-    unique_urls.add(base_url)
-    
-    links = extract_next_links(url, resp)
-
+    # Check for valid response
     if not resp or resp.status != 200 or not getattr(resp, "raw_response", None):
         return [link for link in links if is_valid(link)]
 
+    # Check if content is text/html
     content_type = resp.raw_response.headers.get("Content-Type", "")
     if "text/html" not in content_type.lower():
         return [link for link in links if is_valid(link)]
 
+    # Initialize data after checking response is ok
+    base_url, _ = urldefrag(url)
+    unique_urls.add(base_url)
+    links = extract_next_links(url, resp)
+
     try:
+        # read text
         soup = BeautifulSoup(resp.raw_response.content, "html.parser")
         text = soup.get_text(separator=" ", strip=True)
+        
+        #get tokens & update word_freq
         tokens = tokenize(text)
         word_freq.update(tokens)
 
-        # longest page
+        # update longest page
         global longest_page
         if len(tokens) > longest_page[1]:
             longest_page = (url, len(tokens))
 
-        # subdomains
+        # update subdomains
         parsed = urlparse(url)
         hostname = parsed.hostname.lower() if parsed.hostname else ""
-        if hostname.endswith(".uci.edu"):
+        if hostname.endswith(".uci.edu"): 
             subdomains.setdefault(hostname, set()).add(base_url)
 
-    except Exception as e:
+    except Exception as e: # If there was an error tokening/parsing the page
         print(f"[scraper] Tokenization or parse error on {url}: {e}")
                 
-    return [link for link in links if is_valid(link)]
+    return [link for link in links if is_valid(link)] # Return all valid links
 
 def extract_next_links(url, resp):
     # Implementation required.
@@ -76,12 +81,16 @@ def extract_next_links(url, resp):
     # resp.raw_response: this is where the page actually is. More specifically, the raw_response has two parts:
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
+    
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    output = set()
-
+    
+    # Return early if bad response
     if not resp or getattr(resp, "status", None) != 200 or not getattr(resp, "raw_response", None):
         return []
 
+    output = set() # Set of hyperlinks
+
+    # Check if we get html content
     try:
         content_type = resp.raw_response.headers.get("Content-Type", "") or ""
     except Exception:
@@ -89,10 +98,13 @@ def extract_next_links(url, resp):
     if "text/html" not in content_type.lower():
         return []
 
+    # Parse html content
     try:
+        # Read content
         soup = BeautifulSoup(resp.raw_response.content, "html.parser")
         base = getattr(resp, "url", None) or url
 
+        # Find all <a> tags (hyperlinks)
         for a in soup.find_all("a", href=True):
             href = a.get("href", "").strip()
             if not href or href.startswith(("mailto:", "javascript:")):
@@ -100,6 +112,7 @@ def extract_next_links(url, resp):
 
             absolute_url = urljoin(base, href)
             absolute_url, _ = urldefrag(absolute_url)
+            # Add url to output
             output.add(absolute_url)
 
     except Exception as e:
@@ -112,17 +125,21 @@ def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
+
     try:
         parsed = urlparse(url)
+
+        # Must be http or https
         if parsed.scheme not in set(["http", "https"]):
             return False
 
+        # Only crawl these domains
+        valid_domains = [".ics.uci.edu", ".cs.uci.edu", ".informatics.uci.edu", ".stat.uci.edu"]
         domain = parsed.hostname.lower() if parsed.hostname else ""
-        if not any(domain.endswith(suffix) for suffix in [
-            ".ics.uci.edu", ".cs.uci.edu", ".informatics.uci.edu", ".stat.uci.edu"
-        ]):
+        if not any(domain.endswith(suffix) for suffix in valid_domains):
             return False
             
+        # Return false on non-HTML file types
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
@@ -136,6 +153,8 @@ def is_valid(url):
     except TypeError:
         print ("TypeError for ", parsed)
         raise
+
+    
 
 def tokenize(text):
     # Lowercase and split by non-alphabetic characters
