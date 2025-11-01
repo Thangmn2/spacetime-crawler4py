@@ -34,10 +34,17 @@ ALLOWED_DOMAINS = (
     ".informatics.uci.edu",
     ".stat.uci.edu",
 )
-BLACKLISTED_DOMAINS = (
-    "https://isg.ics.uci.edu/events/*",
-    "http://fano.ics.uci.edu/ca/rules/",
-)
+# BLACKLISTED_DOMAINS = (
+#     "https://isg.ics.uci.edu/events/*",
+#     "http://fano.ics.uci.edu/ca/rules/",
+
+# )
+
+BLACKLISTED_DOMAINS = {
+    "isg.ics.uci.edu",
+    "fano.ics.uci.edu",
+    }
+
 
 FILE_EXT_BLACKLIST_RE = re.compile(
     r"\.(css|js|bmp|gif|jpe?g|ico|png|tiff?|mid|mp2|mp3|mp4|"
@@ -57,10 +64,7 @@ TRAP_PATTERNS = [
     r"(\?|&)utm_", r"(\?|&)replytocom=", r"(\?|&)session(id)?=",
     r"(\?|&)fbclid=", r"(\?|&)gclid=",
     r"(\?|&)format=(amp|print)",
-    r"(\?|&)do=diff",
-    r"(\?|&)rev\d*\[?\d*\]?",
-    r"(\?|&)difftype=",
-    r"doku\.php\?id=.*&rev=",
+    r"(\?|&)share=",
 ]
 TRAP_RES = [re.compile(p) for p in TRAP_PATTERNS]
 
@@ -72,42 +76,6 @@ word_freq = Counter()
 subdomains = {}
 longest_page = ("", 0)
 
-similar = set()
-def similar_check(tokens):
-    #check for duplicate pages and return T if it is similar to previous pages
-    unique_tokens = sorted(set(tokens))[:500]
-
-    # Convert list to tuple to store in the set
-    identical = tuple(unique_tokens)
-
-    if identical in similar:
-        return True
-        
-    #add next to compare
-    similar.add(identical)
-    return False
-
-def tokenize(text):
-    # Lowercase and split by non-alphabetic characters
-    tokens = re.findall(r"[a-zA-Z]+", text.lower())
-
-    #remove stop words and char
-    filtered_tokens = []
-    for t in tokens:
-        if t not in STOPWORDS:
-            if len(t) > 1:
-                filtered_tokens.append(t)
-                
-    return filtered_tokens
-    
-def debug_stats():
-    #print information for debug
-    print("Unique URLs:", len(unique_urls))
-    print("Top 10 words:", word_freq.most_common(10))
-    print("Subdomains:", {k: len(v) for k, v in subdomains.items()})
-    print("Longest page:", longest_page)
-
-    
 def scraper(url, resp):
     # Check for valid response
     if not resp or resp.status != 200 or not getattr(resp, "raw_response", None):
@@ -136,19 +104,6 @@ def scraper(url, resp):
         if len(tokens) < 100:
             return []
 
-        # Prevent extremely large pages
-        if len(tokens) > 100000:
-            return []
-
-        # Prevent too many repeated tokens, compared to 0.2
-        unique_token_ratio = len(set(tokens)) / len(tokens)
-        if unique_token_ratio < 0.2:
-            return []
-
-        # skip very similar pages
-        if similar_check(tokens):  
-            return []
-
         # update longest page
         global longest_page
         if len(tokens) > longest_page[1]:
@@ -162,10 +117,6 @@ def scraper(url, resp):
 
     except Exception as e: # If there was an error tokening/parsing the page
         print(f"[scraper] Tokenization or parse error on {url}: {e}")
-
-    #print debug
-    if len(unique_urls) % 50 == 0:
-        debug_stats()
                 
     return list(filter(is_valid, links)) # Return all valid links
 
@@ -267,3 +218,29 @@ def is_valid(url):
     except TypeError:
         print ("TypeError for ", parsed)
         raise
+
+
+
+def tokenize(text):
+    # Lowercase and split by non-alphabetic characters
+    tokens = re.findall(r"[a-zA-Z]+", text.lower())
+
+    #remove stop words and char
+    filtered_tokens = []
+    for t in tokens:
+        if t not in STOPWORDS:
+            if len(t) > 1:
+                filtered_tokens.append(t)
+                
+    return filtered_tokens
+
+def reportData():
+  unique_pages_count = len(unique_urls)
+  longest_url, longest_wc = longest_page
+  top_50 = word_freq.most_common(50)
+  subdomains_sorted = sorted(
+        [(sub, len(urls)) for sub, urls in subdomains.items()],
+        key=lambda x: x[0]
+    )
+
+  return unique_pages_count, (longest_url, longest_wc), top_50, subdomains_sorted

@@ -17,7 +17,7 @@ def main(config_file, restart):
 
     from scraper import reportData
 
-    unique_pages, (longest_url, longest_wc), top50, subs = reportData()
+    unique_pages, (longest_url, longest_wc), top50, subs = re()
     print(f"unique pages: {unique_pages}")
     print(f"longest page: {longest_url}  (words: {longest_wc})")
     print("\ntop 50 words:")
