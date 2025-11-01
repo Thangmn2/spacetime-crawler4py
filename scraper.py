@@ -37,7 +37,6 @@ ALLOWED_DOMAINS = (
 BLACKLISTED_DOMAINS = (
     "https://isg.ics.uci.edu/events/*",
     "http://fano.ics.uci.edu/ca/rules/",
-
 )
 
 FILE_EXT_BLACKLIST_RE = re.compile(
@@ -58,6 +57,10 @@ TRAP_PATTERNS = [
     r"(\?|&)utm_", r"(\?|&)replytocom=", r"(\?|&)session(id)?=",
     r"(\?|&)fbclid=", r"(\?|&)gclid=",
     r"(\?|&)format=(amp|print)",
+    r"(\?|&)do=diff",
+    r"(\?|&)rev\d*\[?\d*\]?",
+    r"(\?|&)difftype=",
+    r"doku\.php\?id=.*&rev=",
 ]
 TRAP_RES = [re.compile(p) for p in TRAP_PATTERNS]
 
@@ -83,8 +86,28 @@ def similar_check(tokens):
     #add next to compare
     similar.add(identical)
     return False
-    
 
+def tokenize(text):
+    # Lowercase and split by non-alphabetic characters
+    tokens = re.findall(r"[a-zA-Z]+", text.lower())
+
+    #remove stop words and char
+    filtered_tokens = []
+    for t in tokens:
+        if t not in STOPWORDS:
+            if len(t) > 1:
+                filtered_tokens.append(t)
+                
+    return filtered_tokens
+    
+def debug_stats():
+    #print information for debug
+    print("Unique URLs:", len(unique_urls))
+    print("Top 10 words:", word_freq.most_common(10))
+    print("Subdomains:", {k: len(v) for k, v in subdomains.items()})
+    print("Longest page:", longest_page)
+
+    
 def scraper(url, resp):
     # Check for valid response
     if not resp or resp.status != 200 or not getattr(resp, "raw_response", None):
@@ -139,6 +162,10 @@ def scraper(url, resp):
 
     except Exception as e: # If there was an error tokening/parsing the page
         print(f"[scraper] Tokenization or parse error on {url}: {e}")
+
+    #print debug
+    if len(unique_urls) % 50 == 0:
+        debug_stats()
                 
     return list(filter(is_valid, links)) # Return all valid links
 
@@ -240,18 +267,3 @@ def is_valid(url):
     except TypeError:
         print ("TypeError for ", parsed)
         raise
-
-    
-
-def tokenize(text):
-    # Lowercase and split by non-alphabetic characters
-    tokens = re.findall(r"[a-zA-Z]+", text.lower())
-
-    #remove stop words and char
-    filtered_tokens = []
-    for t in tokens:
-        if t not in STOPWORDS:
-            if len(t) > 1:
-                filtered_tokens.append(t)
-                
-    return filtered_tokens
