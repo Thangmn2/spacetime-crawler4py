@@ -4,7 +4,6 @@ from argparse import ArgumentParser
 from utils.server_registration import get_cache_server
 from utils.config import Config
 from crawler import Crawler
-   
 
 
 def main(config_file, restart):
@@ -15,24 +14,10 @@ def main(config_file, restart):
     crawler = Crawler(config, restart)
     crawler.start()
 
-<<<<<<< HEAD
     # Log final stats once crawl completes
     import scraper
     scraper.log_final_stats()
 
-=======
-    from scraper import reportData
-
-    unique_pages, (longest_url, longest_wc), top50, subs = re()
-    print(f"unique pages: {unique_pages}")
-    print(f"longest page: {longest_url}  (words: {longest_wc})")
-    print("\ntop 50 words:")
-    for w, c in top50:
-        print(f"{w}: {c}")
-    print("\nsubdomains:")
-    for sub, n in subs:
-        print(f"{sub}, {n}")
->>>>>>> refs/remotes/origin/master
 
 
 if __name__ == "__main__":
@@ -41,3 +26,4 @@ if __name__ == "__main__":
     parser.add_argument("--config_file", type=str, default="config.ini")
     args = parser.parse_args()
     main(args.config_file, args.restart)
+
