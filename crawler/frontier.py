@@ -34,7 +34,8 @@ class Frontier(object):
         else:
             # Populate the frontier state with contents of save file.
             self._parse_save_file()
-            if not self.save: # If save file is empty, populate using seed urls
+            save = self.get_save() # define save
+            if not save: # If save file is empty, populate using seed urls
                 for url in self.config.seed_urls:
                     self.add_url(url)
 
@@ -46,7 +47,7 @@ class Frontier(object):
         total_count = len(save)
         tbd_count = 0
         #Iterate through save and populate with non-completed urls
-        for url, completed in self.save.values():
+        for url, completed in save.values():
             if not completed and is_valid(url):
                 self.to_be_downloaded.append(url) 
                 tbd_count += 1
