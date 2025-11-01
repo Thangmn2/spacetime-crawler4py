@@ -69,10 +69,20 @@ word_freq = Counter()
 subdomains = {}
 longest_page = ("", 0)
 
-# similar = []
-# def similar_check(text):
-#     #check for duplicate pages
-#     check 
+similar = set()
+def similar_check(tokens):
+    #check for duplicate pages and return T if it is similar to previous pages
+    unique_tokens = sorted(set(tokens))[:500]
+
+    # Convert list to tuple to store in the set
+    identical = tuple(unique_tokens)
+
+    if identical in similar:
+        return True
+        
+    #add next to compare
+    similar.add(identical)
+    return False
     
 
 def scraper(url, resp):
@@ -110,6 +120,10 @@ def scraper(url, resp):
         # Prevent too many repeated tokens, compared to 0.2
         unique_token_ratio = len(set(tokens)) / len(tokens)
         if unique_token_ratio < 0.2:
+            return []
+
+        # skip very similar pages
+        if similar_check(tokens):  
             return []
 
         # update longest page
