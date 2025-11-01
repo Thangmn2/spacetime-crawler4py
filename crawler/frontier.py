@@ -24,7 +24,7 @@ class Frontier(object):
         # Load existing save file, or create one if it does not exist.
         self.thread_local = threading.local() 
         self.save_file = self.config.save_file
-        
+        self.save = shelve.open(self.save_file, writeback=True)
         
         # Restart from the seed_urls
         if restart:
@@ -44,7 +44,7 @@ class Frontier(object):
         # Used to populate from resume
 
         save = self.get_save() #new
-        total_count = len(save)
+        total_count = len(self.save)
         tbd_count = 0
         #Iterate through save and populate with non-completed urls
         for url, completed in save.values():
@@ -85,5 +85,5 @@ class Frontier(object):
     def get_save(self):
         """Ensure each thread has its own shelve connection."""
         if not hasattr(self.thread_local, "save"):
-            self.thread_local.save = shelve.open(self.save_file, writeback=True)
+            self.thread_local.save = self.save
         return self.thread_local.save
