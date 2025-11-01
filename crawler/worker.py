@@ -52,13 +52,16 @@ class Worker(Thread):
         host = (urlparse(url).hostname or "").lower()
         now = time.monotonic()
         ready_at = self._host_next_time.get(host, 0.0)
-        if now < ready_at:
-            time.sleep(ready_at - now)  # wait until host is allowed again
-            # print out to check
+
+        # compute how long we still have to wait for this host
+        wait_time = max(0.0, ready_at - now)
+        if wait_time > 0:
             self.logger.debug(f"Waiting {wait_time:.2f}s for politeness on host {host}")
             time.sleep(wait_time)
+
         # update next allowed time
         self._host_next_time[host] = time.monotonic() + self._per_host_delay
+
 
 
 # If handle_politeness does not work, comment it out (line 32) and uncomment general policy (line 48)
