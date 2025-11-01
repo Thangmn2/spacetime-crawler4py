@@ -3,6 +3,8 @@ from urllib.parse import urlparse, urljoin, urldefrag
 from collections import Counter, deque, defaultdict
 from bs4 import BeautifulSoup
 
+import logging
+
 # Is_Valid variables
 STOPWORDS = {
     "a", "about", "above", "after", "again", "against", "all", "am",
@@ -40,15 +42,17 @@ BLACKLISTED_URL_PATTERNS = [
     r"^https?://isg\.ics\.uci\.edu/events/.*",
     r"^https?://fano\.ics\.uci\.edu/ca/rules/.*"
 ]
-BLACKLISTED_URL_RES = [re.compile(p) for p in BLACKLISTED_URL_PATTERNS]
+BLACKLISTED_URL_RES = [re.compile(p, re.IGNORECASE) for p in BLACKLISTED_URL_PATTERNS]
 
 FILE_EXT_BLACKLIST_RE = re.compile(
     r"\.(css|js|bmp|gif|jpe?g|ico|png|tiff?|mid|mp2|mp3|mp4|"
     r"wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf|ps|eps|tex|ppt|"
     r"pptx|doc|docx|xls|xlsx|names|data|dat|exe|bz2|tar|msi|bin|"
     r"7z|psd|dmg|iso|epub|dll|cnf|tgz|sha1|thmx|mso|arff|rtf|jar|"
-    r"csv|rm|smil|wmv|swf|wma|zip|rar|gz)$"
+    r"csv|rm|smil|wmv|swf|wma|zip|rar|gz)$",
+    re.IGNORECASE
 )
+
 
 # split path traps vs query traps so checks hit correct parts
 PATH_TRAPS = [
@@ -57,7 +61,6 @@ PATH_TRAPS = [
     r"/tag/", r"/category/", r"/author/",
     r"/print(?:/|$)", r"/preview(?:/|$)"
 ]
-PATH_TRAP_RES = [re.compile(p) for p in PATH_TRAPS]
 
 QUERY_TRAPS = [
     r"(?:^|&)page=\d{2,}", r"(?:^|&)offset=\d+", r"(?:^|&)p=\d+",
@@ -66,8 +69,9 @@ QUERY_TRAPS = [
     r"(?:^|&)fbclid=", r"(?:^|&)gclid=", r"(?:^|&)format=(?:amp|print)",
     r"(?:^|&)do=diff", r"(?:^|&)difftype=", r"(?:^|&)rev=\d+"
 ]
-QUERY_TRAP_RES = [re.compile(p) for p in QUERY_TRAPS]
 
+PATH_TRAP_RES  = [re.compile(p, re.IGNORECASE) for p in PATH_TRAPS]
+QUERY_TRAP_RES = [re.compile(p, re.IGNORECASE) for p in QUERY_TRAPS]
 # 
 SKIP_REASONS = Counter()
 
@@ -335,21 +339,6 @@ def is_valid(url):
     except TypeError:
         print ("TypeError for ", parsed)
         raise
-
-
-
-def tokenize(text):
-    # Lowercase and split by non-alphabetic characters
-    tokens = re.findall(r"[a-zA-Z]+", text.lower())
-
-    #remove stop words and char
-    filtered_tokens = []
-    for t in tokens:
-        if t not in STOPWORDS:
-            if len(t) > 1:
-                filtered_tokens.append(t)
-                
-    return filtered_tokens
 
 def reportData():
   unique_pages_count = len(unique_urls)
