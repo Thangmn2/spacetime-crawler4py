@@ -14,6 +14,11 @@ def main(config_file, restart):
     crawler = Crawler(config, restart)
     crawler.start()
 
+    # Log final stats once crawl completes
+    import scraper
+    scraper.log_final_stats()
+
+
 
 if __name__ == "__main__":
     parser = ArgumentParser()
