@@ -335,3 +335,29 @@ def is_valid(url):
     except TypeError:
         print ("TypeError for ", parsed)
         raise
+
+
+
+def tokenize(text):
+    # Lowercase and split by non-alphabetic characters
+    tokens = re.findall(r"[a-zA-Z]+", text.lower())
+
+    #remove stop words and char
+    filtered_tokens = []
+    for t in tokens:
+        if t not in STOPWORDS:
+            if len(t) > 1:
+                filtered_tokens.append(t)
+                
+    return filtered_tokens
+
+def reportData():
+  unique_pages_count = len(unique_urls)
+  longest_url, longest_wc = longest_page
+  top_50 = word_freq.most_common(50)
+  subdomains_sorted = sorted(
+        [(sub, len(urls)) for sub, urls in subdomains.items()],
+        key=lambda x: x[0]
+    )
+
+  return unique_pages_count, (longest_url, longest_wc), top_50, subdomains_sorted
