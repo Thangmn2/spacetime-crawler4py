@@ -99,5 +99,6 @@ class Frontier(object):
     def get_save(self):
         """Ensure each thread has its own shelve connection."""
         if not hasattr(self.thread_local, "save"):
-            self.thread_local.save = self.save
+            # self.thread_local.save = self.save
+            self.thread_local.save = shelve.open(self.save_file, writeback=True)
         return self.thread_local.save

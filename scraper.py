@@ -59,7 +59,8 @@ PATH_TRAPS = [
     r"/calendar(?:/|$)", r"/feed(?:/|$)", r"/rss(?:/|$)",
     r"/\d{4}/\d{2}/", r"/archives?/\d{4}(?:/|$)",
     r"/tag/", r"/category/", r"/author/",
-    r"/print(?:/|$)", r"/preview(?:/|$)"
+    r"/print(?:/|$)", r"/preview(?:/|$)",
+    r"doku\.php", r"/pix/", r"/eppstein/", r"/gitlab/", r"/grape/"
 ]
 
 QUERY_TRAPS = [
@@ -67,7 +68,8 @@ QUERY_TRAPS = [
     r"(?:^|&)sort=", r"(?:^|&)order=", r"(?:^|&)dir=",
     r"(?:^|&)utm_", r"(?:^|&)replytocom=", r"(?:^|&)session(?:id)?=",
     r"(?:^|&)fbclid=", r"(?:^|&)gclid=", r"(?:^|&)format=(?:amp|print)",
-    r"(?:^|&)do=diff", r"(?:^|&)difftype=", r"(?:^|&)rev=\d+"
+    r"(?:^|&)do=diff", r"(?:^|&)difftype=", r"(?:^|&)rev=\d+",
+    r"(?:^|&)tab_files=.*", r"(?:^|&)tab_details=.*", r"(?:^|&)image=.*"
 ]
 
 PATH_TRAP_RES  = [re.compile(p, re.IGNORECASE) for p in PATH_TRAPS]
