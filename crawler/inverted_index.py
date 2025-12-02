@@ -1,6 +1,5 @@
 import json
 import os
-<<<<<<< HEAD
 import re
 from pathlib import Path
 from bs4 import BeautifulSoup
@@ -10,14 +9,6 @@ from bs4 import XMLParsedAsHTMLWarning
 import warnings
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
-=======
-import pickle
-import re
-from pathlib import Path
-from collections import defaultdict
-from bs4 import BeautifulSoup
-from nltk.stem import PorterStemmer
->>>>>>> c53df2033870276ba3fabd7d6a783fdd04775b1e
 
 class InvertedIndex:
     def __init__(self, output_dir="index_output"):
@@ -26,7 +17,6 @@ class InvertedIndex:
         self.output_dir = Path(output_dir) #Where to store data instead of in storage
         self.output_dir.mkdir(exist_ok=True)
     
-<<<<<<< HEAD
     def add(self, token, url, n =1):
         doc_id = Posting.doc_to_doc_id(url)
         postings_list = self.inverted_index.get(token)
@@ -40,42 +30,15 @@ class InvertedIndex:
             p = Posting(url)
             postings_list[doc_id] = p
         p.add(n)
-=======
-    def add(self, token, url):
-        doc_id = Posting.doc_to_doc_id(url)
->>>>>>> c53df2033870276ba3fabd7d6a783fdd04775b1e
 
     def add_document_tokens(self, url, tokens):
         # Add all tokens from a document to the inverted index.
         if not tokens:
             return
             
-<<<<<<< HEAD
         for token, c in Counter(tokens).items():
             self.add(token, url, n=c)
 
-=======
-            # find the posting
-            for posting in postings_list:
-                if posting.doc_id == doc_id:
-                    existing_posting = posting
-                    break
-            
-            if existing_posting:
-                # if posting already exists, add 1 to count
-                existing_posting.add()
-            else:
-                # posting does not exist, create a new one
-                new_posting = Posting(url)
-                new_posting.add()
-                postings_list.append(new_posting)
-
-    def add_document_tokens(self, url, tokens):
-        # Add all tokens from a document to the inverted index.
-        for token in tokens:
-            self.add(token, url)
-
->>>>>>> c53df2033870276ba3fabd7d6a783fdd04775b1e
     def get(self, token):
     # get all postings for a token.
         return self.inverted_index.get(token, [])
@@ -96,10 +59,7 @@ class Posting:
     # class variables
     doc_id_counter = 0 #Keep track of document ids
     doc_url_map = {} # (d_id, document)
-<<<<<<< HEAD
     url_to_doc_id = {} # {url: doc_id}
-=======
->>>>>>> c53df2033870276ba3fabd7d6a783fdd04775b1e
 
     def __init__(self, url):
         self.doc_id = Posting.doc_to_doc_id(url)
@@ -111,7 +71,6 @@ class Posting:
     @staticmethod
     def doc_to_doc_id(url): # convert document to document_id
         #check if document already exists
-<<<<<<< HEAD
         doc_id = Posting.url_to_doc_id.get(url)
         if doc_id is not None:
             return doc_id
@@ -121,16 +80,6 @@ class Posting:
         Posting.doc_id_counter += 1
         Posting.doc_url_map[doc_id] = url
         Posting.url_to_doc_id[url] = doc_id
-=======
-        for doc_id, existing_url in Posting.doc_url_map.items():
-            if existing_url == url:
-                return doc_id
-
-        # Document does not eixst, add document to doc_url_map & update document ids
-        doc_id = Posting.doc_id_counter
-        Posting.doc_url_map[doc_id] = url
-        Posting.doc_id_counter += 1
->>>>>>> c53df2033870276ba3fabd7d6a783fdd04775b1e
         return doc_id
 
     @staticmethod
@@ -153,7 +102,6 @@ def iter_json(root):
         try:
             with p.open("r", encoding="utf-8") as f:
                 j = json.load(f)
-<<<<<<< HEAD
 
             # ensure a string fallback
             url = j.get("url")
@@ -193,45 +141,6 @@ def html_to_text(html):
 
 def tokenize(text, _pat=re.compile(r"[A-Za-z0-9]+")):
     return [m.group(0).lower() for m in _pat.finditer(text or "")]
-=======
-            yield {"url": j.get("url") or p.name, "content": j.get("content", "")}
-        except Exception as e:
-            print(f"[skip] {p}: {e}")
-
-#parse HTML
-def html_to_text(html):
-    if not html:
-        return ""
-        
-    soup = BeautifulSoup(html, "html.parser")
-    
-    for tag in soup(["script", "style", "noscript", "template"]):
-        tag.decompose()
-        
-    for br in soup.find_all("br"):
-        br.replace_with("\n")
-        
-    HTML_tags = {
-        "address", "article", "div", "footer", "header", "hr", "h1", "h2", "h3", "h4", "h5", "li", "main", "nav", "ol", "p", "section", "table", "thead", "tr", "td", "th", "ul"
-    }
-    #removes HTML tags
-    for tag in soup.find_all(HTML_tags):
-        tag.insert_before("\n")
-        tag.insert_after("\n")
-    
-    
-    text = soup.get_text(separator=" ", strip=True)
-    
-    text = re.sub(r"[ \t\r\f\v]+", " ", text) #no spaces/tabs
-    text = re.sub(r"\n\s*\n+", "\n", text)    #no blank lines
-    return text.strip()
-
-def tokenize(text):
-    tokens = []
-    for match in re.finditer(r"[A-Za-z0-9]+", text or ""):
-        tokens.append(match.group(0).lower())
-    return tokens
->>>>>>> c53df2033870276ba3fabd7d6a783fdd04775b1e
 
 stemmer = PorterStemmer()
 def stem_tokens(tokens):
@@ -244,7 +153,6 @@ def stem_tokens(tokens):
         stems.append(stem)
     return stems
     
-<<<<<<< HEAD
 def should_skip(url, content):
     # Skip Apache directory listings (?C= sorting)
     if "?C=" in url and ";O=" in url:
@@ -299,29 +207,6 @@ def main():
             f.write(": ")
             f.write(json.dumps(posts))
         f.write("\n}\n")
-=======
-def main():
-    folder = "../DEV/xtune_ics_uci_edu"
-
-    #initialize index with the index_output file
-    idx = InvertedIndex(output_dir="index_output")
-    for doc in iter_json(folder):
-        text = html_to_text(doc.get("content", ""))
-        tokens = stem_tokens(tokenize(text))
-        idx.add_document_tokens(doc.get("url"), tokens)
-        
-    stats = idx.get_statistics()
-
-   # Save the index as JSON
-    json_file = idx.output_dir / "index.json"
-    with open(json_file, "w", encoding="utf-8") as f:
-        json.dump(
-            {token: [p.to_dict() for p in postings] 
-             for token, postings in idx.inverted_index.items()},
-            f,
-            indent=2
-        )
->>>>>>> c53df2033870276ba3fabd7d6a783fdd04775b1e
 
     #get size in KB
     size_kb = os.path.getsize(json_file) / 1024
@@ -329,16 +214,8 @@ def main():
     print("documents:", stats["num_documents"])
     print("unique tokens:", stats["num_unique_tokens"])
     print("total postings:", stats["total_postings"])
-<<<<<<< HEAD
     print(f"index size in (json) KB: {size_kb:.2f}")
 
 if __name__ == "__main__":
     main()
     
-=======
-    print(f"index size in KB: {size_kb:.2f}")
-
-if __name__ == "__main__":
-    main()
-    
->>>>>>> c53df2033870276ba3fabd7d6a783fdd04775b1e
