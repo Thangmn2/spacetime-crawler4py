@@ -74,14 +74,14 @@ QUERY_TRAPS = [
 
 PATH_TRAP_RES  = [re.compile(p, re.IGNORECASE) for p in PATH_TRAPS]
 QUERY_TRAP_RES = [re.compile(p, re.IGNORECASE) for p in QUERY_TRAPS]
-# 
+#
 SKIP_REASONS = Counter()
 
 unique_urls = set()
 word_freq = Counter()
 subdomains = {}
 longest_page = ("", 0)
-links_discovered = 0  
+links_discovered = 0
 
 # bound similarity memory and separate per-host to reduce collisions
 similar_by_host = defaultdict(lambda: deque(maxlen=1000))
@@ -118,7 +118,7 @@ def tokenize(text):
 def debug_stats():
     #print information for debug
     print("Unique URLs:", len(unique_urls))
-    print("Top 10 words:", word_freq.most_common(10))
+    print("Top 50 words:", word_freq.most_common(50))
     print("Subdomains:", {k: len(v) for k, v in subdomains.items()})
     print("Longest page:", longest_page)
 
@@ -127,7 +127,7 @@ def log_final_stats():
     logger = logging.getLogger("CRAWLER")
 
     longest_url, longest_wc = longest_page
-    top10 = word_freq.most_common(10)
+    top50 = word_freq.most_common(50)
     subs = sorted((h, len(s)) for h, s in subdomains.items())
 
     lines = []
@@ -135,8 +135,8 @@ def log_final_stats():
     lines.append(f"Total unique pages: {len(unique_urls)}")
     lines.append(f"Total links discovered: {links_discovered}")
     lines.append(f"Longest page: {longest_wc} words @ {longest_url}")
-    lines.append("Top 10 words:")
-    for w, c in top10:
+    lines.append("Top 50 words:")
+    for w, c in top50:
         lines.append(f"  {w}: {c}")
     lines.append("\nSubdomains:")
     for host, n in subs:
@@ -162,7 +162,7 @@ def scraper(url, resp):
     # Check if content is text/html
     content_type = resp.raw_response.headers.get("Content-Type", "")
     if "text/html" not in content_type.lower():
-        return [] 
+        return []
 
     body = getattr(resp.raw_response, "content", b"")
     if not body or not body.strip():
@@ -202,7 +202,7 @@ def scraper(url, resp):
             return []
 
         # skip very similar pages
-        if similar_check(url, tokens):  
+        if similar_check(url, tokens):
             return []
 
         # update longest page
@@ -213,7 +213,7 @@ def scraper(url, resp):
         # update subdomains
         parsed = urlparse(base_url)
         hostname = parsed.hostname.lower() if parsed.hostname else ""
-        if hostname.endswith(".uci.edu"): 
+        if hostname.endswith(".uci.edu"):
             subdomains.setdefault(hostname, set()).add(base_url)
 
     except Exception as e: # If there was an error tokening/parsing the page
@@ -287,7 +287,7 @@ def extract_next_links(url, resp):
     return list(output)
 
 def is_valid(url):
-    # Decide whether to crawl this url or not. 
+    # Decide whether to crawl this url or not.
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     
@@ -299,7 +299,7 @@ def is_valid(url):
         parsed = urlparse(url)
         # Must be http or https
         if parsed.scheme not in {"http", "https"}:
-            return False        
+            return False
 
         # Only crawl valid domains
         host = (parsed.hostname or "").lower()
@@ -332,7 +332,7 @@ def is_valid(url):
         if len(segments) > 8 and len(segments) != len(set(segments)):
             return False
 
-        # Handle excessively large queries 
+        # Handle excessively large queries
         if len(query) > 200:
             return False
 
@@ -341,14 +341,3 @@ def is_valid(url):
     except TypeError:
         print ("TypeError for ", parsed)
         raise
-
-def reportData():
-  unique_pages_count = len(unique_urls)
-  longest_url, longest_wc = longest_page
-  top_50 = word_freq.most_common(50)
-  subdomains_sorted = sorted(
-        [(sub, len(urls)) for sub, urls in subdomains.items()],
-        key=lambda x: x[0]
-    )
-
-  return unique_pages_count, (longest_url, longest_wc), top_50, subdomains_sorted
