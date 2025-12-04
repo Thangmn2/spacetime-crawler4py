@@ -101,7 +101,15 @@ class SearchEngine:
             return []
 
         # 3) stem each token
+
+        # bigrams
         tokens = self.stem_tokens(tokens)
+
+        query_bgrams = [tokens[i] + "_" + tokens[i+1] for i in range(len(tokens)-1)]
+
+        allTerms = tokens+query_bgrams
+        print("debug unigrams:", tokens)
+        print("debug bigrams:", query_bgrams)
 
         # 4) Try Boolean AND first
         doc_ids = self.boolean_and(tokens)
@@ -113,7 +121,8 @@ class SearchEngine:
         # 6) Score each document using TF-IDF
         results = []
         for doc_id in doc_ids:
-            score = self.score_doc(doc_id, tokens)
+            score = self.score_doc(doc_id, allTerms)
+            # score = self.score_doc(doc_id, tokens)
             results.append((doc_id, score))
 
         # 7) Sort results by score descending

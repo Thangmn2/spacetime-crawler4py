@@ -187,7 +187,12 @@ def main():
             
         text = html_to_text(doc.get("content", ""))
         tokens = stem_tokens(tokenize(text))
-        idx.add_document_tokens(doc.get("url"), tokens)
+
+        # building 2 grams
+        bgrams = [tokens[i] + "_" + tokens[i+1] for i in range(len(tokens)-1)]
+        allTerms = tokens + bgrams
+        idx.add_document_tokens(url, allTerms)
+        # idx.add_document_tokens(doc.get("url"), tokens)
         print(doc["url"])  # See every file being processed
         
     stats = idx.get_statistics()
