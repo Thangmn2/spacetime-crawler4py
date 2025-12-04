@@ -107,4 +107,4 @@ venv.bak/
 .vscode/
 
 *.full.py
-*.shelve
+*.shelveDEV/index_output/ git add .gitignore
