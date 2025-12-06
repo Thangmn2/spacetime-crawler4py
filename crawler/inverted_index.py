@@ -17,27 +17,30 @@ class InvertedIndex:
         self.output_dir = Path(output_dir) #Where to store data instead of in storage
         self.output_dir.mkdir(exist_ok=True)
     
-    def add(self, token, url, n =1):
+    def add(self, token, url, n =1, important_weight=1.0):
         doc_id = Posting.doc_to_doc_id(url)
         postings_list = self.inverted_index.get(token)
         if postings_list is None:
             p = Posting(url)
-            p.add(n)
+            p.add(n, important_weight)
             self.inverted_index[token] = {doc_id: p}
             return
         p = postings_list.get(doc_id)
         if p is None:
             p = Posting(url)
             postings_list[doc_id] = p
-        p.add(n)
+        p.add(n, important_weight)
 
-    def add_document_tokens(self, url, tokens):
+    def add_document_tokens(self, url, tokens, important_tokens):
         # Add all tokens from a document to the inverted index.
         if not tokens:
             return
-            
+        
+        important_set = set(important_tokens)
+
         for token, c in Counter(tokens).items():
-            self.add(token, url, n=c)
+            important_weight = 2.0 if token in important_set else 1.0
+            self.add(token, url, n=c, important_weight=important_weight)
 
     def get(self, token):
     # get all postings for a token.
@@ -64,10 +67,12 @@ class Posting:
     def __init__(self, url):
         self.doc_id = Posting.doc_to_doc_id(url)
         self.frequency = 0
+        self.weighted_freq = 0.0
 
-    def add(self, n=1): # Add n to frequency of posting
+    def add(self, n=1, important_weight=1.0): # Add n and important word weighting to frequency of posting
         self.frequency += n
-
+        self.weighted_freq += n * important_weight
+        
     @staticmethod
     def doc_to_doc_id(url): # convert document to document_id
         #check if document already exists
@@ -94,8 +99,10 @@ class Posting:
         return {
             "doc_id": self.doc_id,
             "frequency": self.frequency,
+            "weighted_frequency": self.weighted_freq,
             "url": Posting.get_url_by_doc_id(self.doc_id)
-        }
+    }
+
 #traverse folders and read JSON
 def iter_json(root):
     for p in Path(root).rglob("*.json"):
@@ -125,18 +132,32 @@ def iter_json(root):
         except Exception as e:
             print(f"[skip] {p}: {e}")
 
-#parse HTML
-def html_to_text(html):
-
-    # normalize to str
+def parse_html_with_important_words(html):
     if isinstance(html, bytes):
         html = html.decode("utf-8", "ignore")
     elif not isinstance(html, str):
         html = "" if html is None else str(html)
 
     soup = BeautifulSoup(html, "html.parser")
+    
+    # extract important tokens first
+    important_tokens = []
+    
+    title = soup.find("title")
+    if title:
+        important_tokens.extend(tokenize(title.get_text()))
+    
+    for tag in soup.find_all(["h1", "h2", "h3"]):
+        important_tokens.extend(tokenize(tag.get_text()))
+    
+    for tag in soup.find_all(["b", "strong"]):
+        important_tokens.extend(tokenize(tag.get_text()))
+    
+    # extract all text
     text = soup.get_text(separator=" ", strip=True)
-    return re.sub(r"[ \t\r\f\v]+", " ", text).strip()
+    text = re.sub(r"[ \t\r\f\v]+", " ", text).strip()
+    
+    return text, important_tokens
     
 
 def tokenize(text, _pat=re.compile(r"[A-Za-z0-9]+")):
@@ -185,9 +206,18 @@ def main():
             print(f"\n[SKIP] {url}")
             continue
             
-        text = html_to_text(doc.get("content", ""))
+        # parse HTML
+        text, important_text_tokens = parse_html_with_important_words(content)
+        important_stems = stem_tokens(important_text_tokens)
+
+        # tokenize the full text
         tokens = stem_tokens(tokenize(text))
-        idx.add_document_tokens(doc.get("url"), tokens)
+
+        # building 2 grams
+        bgrams = [tokens[i] + "_" + tokens[i+1] for i in range(len(tokens)-1)]
+        allTerms = tokens + bgrams
+        idx.add_document_tokens(url, allTerms, important_stems)
+        # idx.add_document_tokens(doc.get("url"), tokens)
         print(doc["url"])  # See every file being processed
         
     stats = idx.get_statistics()
@@ -218,4 +248,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
