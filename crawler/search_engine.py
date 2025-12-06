@@ -179,7 +179,7 @@ class SearchEngine:
             p = postings.get(str(doc_id))  # doc_id stored as string in JSON
             if p:
                 tf = p.get("weighted_frequency", p["frequency"]) # term frequency and weighted
-                idf = idf = self.get_idf(token)  # precomputed IDF
+                idf = self.get_idf(token)  # precomputed IDF
                 score += tf * idf
         return score
 

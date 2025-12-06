@@ -4,7 +4,10 @@ from search_engine import SearchEngine
 app = Flask(__name__)
 
 # Initialize search engine once
-search_engine = SearchEngine("index_output/index.json")
+search_engine = SearchEngine(
+    doc_map_file="index_output/doc_id_map.json", 
+    merged_index_file="index_output/index.json"
+)
 
 @app.route("/", methods=["GET", "POST"])
 def home():
