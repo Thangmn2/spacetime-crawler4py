@@ -12,28 +12,47 @@ class SearchEngine:
         self.create_doc_map_if_needed(doc_map_file, merged_index_file)
 
         print("[INFO] Loading document map...")
-
-        # Load doc_id → URL mapping (small JSON, safe to load fully)
         with open(doc_map_file, "r", encoding="utf-8") as f:
             self.doc_id_to_url = json.load(f)
         self.total_docs = len(self.doc_id_to_url)
-
         print(f"[INFO] Loaded {self.total_docs} documents.\n")
 
-        # Split merged index into shards (A-F, G-M, N-T, U-Z)
+        # Split merged index into shards if not present
         self.shard_files = {
             "A": "index_output/A_F.json",
             "G": "index_output/G_M.json",
             "N": "index_output/N_T.json",
             "U": "index_output/U_Z.json"
         }
-
-        #check if shard_files exist so we dont run it every instantiation 
         if not all(os.path.exists(f) for f in self.shard_files.values()):
             self.split_into_ranges(merged_index_file)
 
-        # Add a cache for loaded shards
-        self.shard_cache = {}
+        # Load all shards into memory
+        self.shard_index = {}
+        self.idf_cache = {}
+        for shard_key, file_path in self.shard_files.items():
+            with open(file_path, "r", encoding="utf-8") as f:
+                shard_data = json.load(f)
+
+            # Convert postings to dicts and precompute IDF
+            for token, postings_list in shard_data.items():
+                postings_dict = {}
+                for posting in postings_list:
+                    doc_id = str(posting["doc_id"])
+                    postings_dict[doc_id] = {
+                        "frequency": posting["frequency"],
+                        "weighted_frequency": posting.get("weighted_frequency", posting["frequency"])
+                    }
+                shard_data[token] = postings_dict
+
+                # Precompute IDF
+                df = len(postings_dict)
+                if df > 0:
+                    self.idf_cache[token] = math.log(self.total_docs / df)
+                else:
+                    self.idf_cache[token] = 0.0
+
+            self.shard_index[shard_key] = shard_data
 
     def create_doc_map_if_needed(self, doc_map_file, merged_index_file):
         #Create doc_id_map.json if it doesn't exist        
@@ -92,40 +111,16 @@ class SearchEngine:
     #load posting/index depend on what we need
     def load_postings(self, token):
         first = token[0].lower()
-        
         if "a" <= first <= "f":
-            filename = self.shard_files["A"]
+            shard = self.shard_index["A"]
         elif "g" <= first <= "m":
-            filename = self.shard_files["G"]
+            shard = self.shard_index["G"]
         elif "n" <= first <= "t":
-            filename = self.shard_files["N"]
+            shard = self.shard_index["N"]
         else:
-            filename = self.shard_files["U"]
+            shard = self.shard_index["U"]
         
-        # Check cache first!
-        if filename not in self.shard_cache:
-            print(f"[DEBUG] Loading shard: {filename}")  # Optional: see when shards load
-            with open(filename, "r") as f:
-                self.shard_cache[filename] = json.load(f)
-        
-        index = self.shard_cache[filename]
-        
-        # Get postings list for this token
-        postings_list = index.get(token, [])
-        
-        # Convert list format to dict format
-        # From: [{"doc_id": 0, "frequency": 15, "url": "..."}, ...]
-        # To: {"0": {"frequency": 15, "weighted_frequency": 15}, ...}
-        postings_dict = {}
-        for posting in postings_list:
-            doc_id = str(posting["doc_id"])
-            postings_dict[doc_id] = {
-                "frequency": posting["frequency"],
-                "weighted_frequency": posting.get("weighted_frequency", posting["frequency"])
-            }
-        
-        return postings_dict
-            
+        return shard.get(token, {})   
 
     # Break query into words, lowercase everything
     def tokenize(self, query):
@@ -159,14 +154,6 @@ class SearchEngine:
                 docs |= set(postings.keys())
         return docs
     
-    #get IDF for the IF-IDF scoring
-    def get_idf(self, token):
-        postings = self.load_postings(token)
-        df = len(postings)
-        if df > 0:
-            return math.log(self.total_docs / df)
-        return 0.0
-    
     # Compute TF-IDF score for a single document
     def score_doc(self, doc_id, tokens):
         score = 0.0
@@ -179,7 +166,7 @@ class SearchEngine:
             p = postings.get(str(doc_id))  # doc_id stored as string in JSON
             if p:
                 tf = p.get("weighted_frequency", p["frequency"]) # term frequency and weighted
-                idf = self.get_idf(token)  # precomputed IDF
+                idf = self.idf_cache.get(token, 0.0)  # precomputed IDF
                 score += tf * idf
         return score
 

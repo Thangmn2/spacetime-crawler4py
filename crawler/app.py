@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request
 from search_engine import SearchEngine  
+import time
 
 app = Flask(__name__)
 
@@ -18,8 +19,15 @@ def home():
         # Get the query from the HTML form
         query = request.form.get("query", "").strip()
         if query:
-            # Run the search and get results
-            results = search_engine.search(query)
+            
+            start_time = time.time()       # Start timing
+
+            results = search_engine.search(query)   # Run the search and get results
+
+            end_time = time.time()         # End timing
+            duration = end_time - start_time
+
+            print(f"[QUERY TIME] '{query}' took {duration:.4f} seconds")  # check time for query to complete
 
     # Render the template with the query and results
     return render_template("index.html", query=query, results=results)
